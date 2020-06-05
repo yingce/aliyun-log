@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    aliyun-log (0.1.0)
+    aliyun-log (0.1.2)
       protobuf (~> 3.10.0)
       rest-client (~> 2.1.0)
 
@@ -21,7 +21,7 @@ GEM
     http-accept (1.7.0)
     http-cookie (1.0.3)
       domain_name (~> 0.5)
-    i18n (1.8.2)
+    i18n (1.8.3)
       concurrent-ruby (~> 1.0)
     middleware (0.1.0)
     mime-types (3.3.1)

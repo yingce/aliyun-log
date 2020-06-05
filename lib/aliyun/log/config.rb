@@ -29,6 +29,7 @@ module Aliyun
         @access_key_secret ||= self.class.access_key_secret
         @endpoint ||= self.class.endpoint
         normalize_endpoint
+        raise 'Missing AccessKeyID or AccessKeySecret' if @access_key_id.nil? || @access_key_secret.nil?
       end
 
       private

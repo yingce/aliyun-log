@@ -20,10 +20,10 @@ module Aliyun
         resources ||= {}
         res = '/'
         if resources[:logstore]
-          res << 'logstores'
-          res << "/#{resources[:logstore]}" unless resources[:logstore].empty?
+          res = "#{res}logstores"
+          res = "#{res}/#{resources[:logstore]}" unless resources[:logstore].empty?
         end
-        res << "/#{resources[:action]}" if resources[:action]
+        res = "#{res}/#{resources[:action]}" if resources[:action]
         res
       end
 
