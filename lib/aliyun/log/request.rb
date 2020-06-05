@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'rest-client'
 require 'base64'
 require 'openssl'
@@ -72,7 +74,6 @@ module Aliyun
           payload = Zlib::Deflate.deflate(payload.encode) if resources[:is_pb]
           request_options[:payload] = payload
         end
-        logger.debug(request_options)
         request = RestClient::Request.new(request_options)
         response = request.execute do |resp|
           if resp.code >= 300
@@ -99,11 +100,13 @@ module Aliyun
           'User-Agent' => "aliyun-log ruby-#{RUBY_VERSION}/#{RUBY_PLATFORM}"
         }
         return headers if body.nil?
+
         if is_pb
           compressed = Zlib::Deflate.deflate(body.encode)
           headers['Content-Length'] = compressed.bytesize.to_s
           # 日志内容包含的日志必须小于3MB和4096条。
-          raise 'content length is larger than 3MB' if headers['Content-Length'].to_i > 3145728
+          raise 'content length is larger than 3MB' if headers['Content-Length'].to_i > 3_145_728
+
           headers['Content-MD5'] = Digest::MD5.hexdigest(compressed).upcase
           headers['Content-Type'] = 'application/x-protobuf'
           headers['x-log-compresstype'] = 'deflate'
@@ -122,7 +125,6 @@ module Aliyun
           @config.access_key_secret,
           string_to_sign(verb, resource, headers, query).chomp
         )
-        logger.debug "\n#{string_to_sign(verb, resource, headers, query).chomp}"
         base64_sign = Base64.strict_encode64(sha1_digest)
         "LOG #{@config.access_key_id}:#{base64_sign}"
       end
@@ -133,12 +135,12 @@ module Aliyun
           #{headers['Content-MD5']}
           #{headers['Content-Type']}
           #{headers['Date']}
-          #{canonicalized_sls_headers(headers)}
+          #{canonicalized_headers(headers)}
           #{canonicalized_resource(resource, query)}
         DOC
       end
 
-      def canonicalized_sls_headers(headers)
+      def canonicalized_headers(headers)
         h = {}
         headers.each do |k, v|
           h[k.downcase] = v if k =~ /x-log-.*/
@@ -151,11 +153,12 @@ module Aliyun
 
       def canonicalized_resource(resource = '', query = {})
         return resource if query.empty?
+
         url = URI.parse(resource)
-        q_str = query.keys.sort.map do |e|
+        sort_str = query.keys.sort.map do |e|
           "#{e}=#{query[e]}"
         end.join('&')
-        "#{url}?#{q_str}"
+        "#{url}?#{sort_str}"
       end
     end
   end

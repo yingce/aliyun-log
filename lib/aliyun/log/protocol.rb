@@ -5,6 +5,7 @@ require 'json'
 module Aliyun
   module Log
     class Protocol
+      include Common::Logging
       def initialize(config)
         @http = Request.new(config)
       end
@@ -20,6 +21,10 @@ module Aliyun
           Project.from_json(attrs, self)
         end
         data
+      end
+
+      def projects(size = nil, offset = nil)
+        list_projects(size, offset)['projects']
       end
 
       def get_project(project_name)
@@ -171,9 +176,7 @@ module Aliyun
         }
         fields.each do |k, v|
           body[:keys][k] = v
-          if %w[text json].include?(v[:type]) && v[:token].blank?
-            v[:token] = INDEX_DEFAULT_TOKEN
-          end
+          v[:token] = INDEX_DEFAULT_TOKEN if %w[text json].include?(v[:type]) && v[:token].blank?
         end
         @http.post({ project: project_name, logstore: logstore_name, action: 'index' }, body.to_json)
       end
@@ -187,9 +190,7 @@ module Aliyun
         }
         fields.each do |k, v|
           body[:keys][k] = v
-          if v[:type] == 'text' && v[:token].blank?
-            v[:token] = INDEX_DEFAULT_TOKEN
-          end
+          v[:token] = INDEX_DEFAULT_TOKEN if v[:type] == 'text' && v[:token].blank?
         end
         @http.put({ project: project_name, logstore: logstore_name, action: 'index' }, body.to_json)
       end

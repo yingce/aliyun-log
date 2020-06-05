@@ -1,4 +1,5 @@
-# 
+# frozen_string_literal: true
+
 require_relative 'log/common'
 require_relative 'log/client'
 require_relative 'log/config'

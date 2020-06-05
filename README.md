@@ -55,13 +55,16 @@ Or install it yourself as:
 
 ## Usage
 
-### [optional] global configure
+### [optional] Global configure
 
 ```ruby
 Aliyun::Log.configure do |config|
   config.access_key_id      = 'key_id'
   config.access_key_secret  = 'key_secret'
-  config.endpoint = 'https://cn-beijing.log.aliyuncs.com'
+  config.endpoint  = 'https://cn-beijing.log.aliyuncs.com'
+  config.log_file  = 'aliyun_log.log' # default
+  # Logger::DEBUG | Logger::INFO | Logger::ERROR | Logger::FATAL
+  config.log_level = Logger::DEBUG # default
 end
 ```
 
@@ -91,6 +94,8 @@ projects = client.list_projects # arguments(size = 500, offset = 0)
   "projects" => [Aliyun::Log::Project#instance]
 }
 projects["projects"].each { |project| p project.name }
+
+client.projects equal projects["projects"]
 ```
 
 ### Get project
@@ -168,7 +173,7 @@ log_group = Aliyun::Log::Protobuf::LogGroup.new(
 )
 logstore.put_logs(log_group)
 
-# simple Single log
+# Or simple single kv log
 logstore.put_log({ key1: "value1", key2: "value2" })
 ```
 
@@ -183,7 +188,7 @@ logstore.get_logs(
   line: 100,
   offset: 0,
   reverse: false,
-  topic: ''
+  topic: '' # __topic__
 )
 ```
 
@@ -195,6 +200,20 @@ logstore.get_histograms(
   to: Time.now.to_i,
   query: "*|select count(*), 'k1' as kk",
 )
+```
+
+## Logger
+
+#### Log file in the directory of project root `aliyun_log.log` and level was `Logger::DEBUG` by default using global config.
+
+#### logger and level
+
+```ruby
+Aliyun::Log::Common::Logging.logger = Logger.new('aliyun.log')
+Aliyun::Log::Common::Logging.loger_file = 'aliyun.log'
+
+# Logger::DEBUG | Logger::INFO | Logger::ERROR | Logger::FATAL
+Aliyun::Log::Common::Logging.log_level = Logger::INFO
 ```
 
 ## Development

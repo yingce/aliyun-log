@@ -1,7 +1,8 @@
+# frozen_string_literal: true
+
 module Aliyun
   module Log
     class Logstore < Common::AttrStruct
-
       attrs :name, :project_name, :ttl, :shared_count, :enable_tracking,
             :auto_split, :max_split_shard, :create_time, :last_modify_time
 

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Aliyun
   module Log
     module Common

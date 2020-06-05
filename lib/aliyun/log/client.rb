@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Aliyun
   module Log
     class Client
@@ -8,6 +10,10 @@ module Aliyun
 
       def list_projects(size = nil, offset = nil)
         @protocol.list_projects(size, offset)
+      end
+
+      def projects(size = nil, offset = nil)
+        @protocol.projects(size, offset)
       end
 
       def get_project(name)

@@ -1,12 +1,17 @@
+# frozen_string_literal: true
+
+require 'logger'
 module Aliyun
   module Log
     class Config < Common::AttrStruct
       @endpoint = 'https://cn-beijing.log.aliyuncs.com'
       @open_timeout = 10
       @read_timeout = 120
+      @log_file = 'aliyun_log.log'
+      @log_level = Logger::DEBUG
       class << self
         attr_accessor :endpoint, :access_key_id, :access_key_secret,
-                      :open_timeout, :read_timeout
+                      :open_timeout, :read_timeout, :log_file, :log_level
 
         def configure
           yield self
@@ -28,16 +33,14 @@ module Aliyun
 
       private
 
-        def normalize_endpoint
-          uri = URI.parse(endpoint)
-          uri = URI.parse("http://#{endpoint}") unless uri.scheme
+      def normalize_endpoint
+        uri = URI.parse(endpoint)
+        uri = URI.parse("http://#{endpoint}") unless uri.scheme
 
-          if (uri.scheme != 'http') && (uri.scheme != 'https')
-            raise 'Only HTTP and HTTPS endpoint are accepted.'
-          end
+        raise 'Only HTTP and HTTPS endpoint are accepted.' if (uri.scheme != 'http') && (uri.scheme != 'https')
 
-          @endpoint = uri.to_s
-        end
+        @endpoint = uri.to_s
+      end
     end
   end
 end
