@@ -31,6 +31,10 @@ module Aliyun
       def delete_project(name)
         @protocol.delete_project(name)
       end
+
+      def get_logstore(project_name, logstore_name)
+        @protocol.get_logstore(project_name, logstore_name)
+      end
     end
   end
 end

@@ -69,7 +69,7 @@ module Aliyun
           read_timeout: @config.read_timeout
         }
         if verb == 'GET'
-          request_options[:url] = canonicalized_resource(request_options[:url], payload)
+          request_options[:url] = URI.escape(canonicalized_resource(request_options[:url], payload))
         else
           payload = Zlib::Deflate.deflate(payload.encode) if resources[:is_pb]
           request_options[:payload] = payload
