@@ -1,8 +1,8 @@
 # Aliyun::Log
 
-阿里云简单日志服务(SLS)Gem
+阿里云简单日志服务(SLS) Ruby SDK Gem
 
-### 目前支持的功能
+### 目前支持的功能 API
 
 #### 项目相关：
 
@@ -30,6 +30,17 @@
 - 查询
 - 创建日志
 - histograms
+
+### Model 映射
+
+- 支持简单 Model 映射
+
+### TODO
+
+- [ ] 完善 Model 映射查询解析
+- [ ] 优化 Model 映射创建数据
+- [ ] 完善 restful 接口
+- [ ] 完善 Model 逻辑结构
 
 ## Installation
 
@@ -69,6 +80,8 @@ end
 ```
 
 In specific, the `endpoint` is the Log service address. The address may vary based on different regions for the node. The address for a Beijing node is: `https://cn-beijing.log.aliyuncs.com` by default configure. the `endpoint` also support for internal address just like normal address.
+
+> ## SDK
 
 ### Create a client
 
@@ -173,8 +186,12 @@ log_group = Aliyun::Log::Protobuf::LogGroup.new(
 )
 logstore.put_logs(log_group)
 
-# Or simple single kv log
+# Or simple kv log
 logstore.put_log({ key1: "value1", key2: "value2" })
+logstore.put_log([
+  { key1: "value1", key2: "value2" },
+  { key1: "value11", key2: "value22" }
+], time: Time.now.to_i)
 ```
 
 ### Get logs
@@ -200,6 +217,83 @@ logstore.get_histograms(
   to: Time.now.to_i,
   query: "*|select count(*), 'k1' as kk",
 )
+```
+
+> ## Model record
+
+```ruby
+Aliyun::Log.configure do |c|
+  config.timestamps = false # turn off created_at field
+  config.project = 'user_logs' # project name
+end
+
+# defind model class
+class User
+  include Aliyun::Log::Record
+
+  # @param name: default using class name pluralize
+  # @param field_index: toggle all field indecies
+  # @param project: logstore project name
+  # @param auto_sync: true or false, logstore automation create
+  logstore name: 'users', field_index: true
+
+  # @param 1: field name
+  # @param 2: field type, default was text
+  # @param index: index toggle, higher than logstore.field_index
+  # @param default: default value
+  field :age, :long, index: false
+  field :time, :text, default: -> { Time.now }
+  field :name, :text, default: 'Dace'
+  field :location, :text
+
+  # ActiveModel::Validations
+  validates :name, :what, presence: true
+
+  # ActiveModel::Callbacks
+  # support [initialize create save] callbacks
+  before_save do
+    self.location = name * 2
+  end
+end
+
+# sync logstore and indecies
+Aliyun::Log.init_logstore
+```
+
+#### filter methods
+
+```ruby
+User.from('2020-01-01') # log start time
+User.to('2020-01-01 01:02:03') # log end time
+User.limit(20) # default limit 100
+User.page(30) # offset will set to 600
+User.search('*').sql("SELECT name")
+# Log Query: "*|SELECT name"
+
+# support chain responsibility
+users = User.search('name: dace')
+# pagination
+users = users.page(1).limit(3).result
+# result => [{"__source__"=>"", "__time__"=>"1591459200", "name"=>"dace"}]
+
+# sql pagination
+User.search('name: dace')
+    .sql('SELECT name LIMIT 1,3')
+    .result
+# note:
+# sql limit can't using with raw page() and limit()
+```
+
+#### result functions
+
+```ruby
+User.count
+User.from(Date.yesterday).sql('select * where name is not null').count
+# => 100
+User.result
+# => [{"__source__"=>"", "__time__"=>"1590000000", "__topic__"=>"", "created_at"=>"2020-06-08T16:36:17+08:00", "name"=>"Dace", "age"=>"28", "time"=>"2020-06-08T16:36:17+08:00", "location"=>"DaceDace"}]
+User.load
+# => [#<User created_at: "2020-06-08T18:39:03+08:00", name: "Dace", age: "28", location: "DaceDace">]
 ```
 
 ## Logger

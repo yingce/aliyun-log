@@ -9,9 +9,11 @@ module Aliyun
       @read_timeout = 120
       @log_file = 'aliyun_log.log'
       @log_level = Logger::DEBUG
+      @timestamps = true
       class << self
         attr_accessor :endpoint, :access_key_id, :access_key_secret,
-                      :open_timeout, :read_timeout, :log_file, :log_level
+                      :open_timeout, :read_timeout, :log_file, :log_level,
+                      :timestamps, :project
 
         def configure
           yield self

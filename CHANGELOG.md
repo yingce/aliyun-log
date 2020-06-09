@@ -1,3 +1,8 @@
+## 0.2.0
+
+- Add support model record relation
+- UPDATE put_log array hash
+
 ## 0.1.2
 
 - Fix frozen_string bug and missing key_id and key_secret verify

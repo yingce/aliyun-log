@@ -66,7 +66,7 @@ module Aliyun
 
       def create_logstore(project_name, logstore_name, opt = {})
         body = {
-          logstore_name: logstore_name,
+          logstoreName: logstore_name,
           ttl: opt[:ttl] || 365,
           shardCount: opt[:shard_count] || 2,
           autoSplit: opt[:auto_split].nil? ? false : opt[:auto_split],
@@ -105,10 +105,17 @@ module Aliyun
         @http.post({ project: project_name, logstore: logstore_name, is_pb: true }, content)
       end
 
-      def put_log(project_name, logstore_name, log_attr)
-        contents = log_attr.compact.map { |k, v| { key: k, value: v } }
-        log_pb = Protobuf::Log.new(time: Time.now.to_i, contents: contents)
-        lg_pb = Protobuf::LogGroup.new(logs: [log_pb])
+      def build_log_pb(attrs, time = Time.now.to_i)
+        logs = attrs.is_a?(Array) ? attrs : [attrs]
+        logs.map do |log_attr|
+          contents = log_attr.compact.map { |k, v| { key: k, value: v.to_s } }
+          Protobuf::Log.new(time: time, contents: contents)
+        end
+      end
+
+      def put_log(project_name, logstore_name, logs, opts = {})
+        logs = build_log_pb(logs, opts[:time] || Time.now.to_i)
+        lg_pb = Protobuf::LogGroup.new(logs: logs, topic: opts[:topic])
         @http.post({ project: project_name, logstore: logstore_name, is_pb: true }, lg_pb)
       end
 
@@ -175,8 +182,8 @@ module Aliyun
           keys: {}
         }
         fields.each do |k, v|
+          v[:token] = INDEX_DEFAULT_TOKEN if %w[text json].include?(v[:type].to_s) && v[:token].blank?
           body[:keys][k] = v
-          v[:token] = INDEX_DEFAULT_TOKEN if %w[text json].include?(v[:type]) && v[:token].blank?
         end
         @http.post({ project: project_name, logstore: logstore_name, action: 'index' }, body.to_json)
       end
@@ -189,8 +196,8 @@ module Aliyun
           keys: {}
         }
         fields.each do |k, v|
+          v[:token] = INDEX_DEFAULT_TOKEN if %w[text json].include?(v[:type].to_s) && v[:token].blank?
           body[:keys][k] = v
-          v[:token] = INDEX_DEFAULT_TOKEN if v[:type] == 'text' && v[:token].blank?
         end
         @http.put({ project: project_name, logstore: logstore_name, action: 'index' }, body.to_json)
       end

@@ -53,24 +53,21 @@ module Aliyun
 
       def do_request(verb, resources, payload)
         resource_path = get_resource_path(resources)
-        headers = {}
-        if verb == 'GET'
-          headers = compact_headers
-          headers['Authorization'] = signature(verb, resource_path, headers, payload)
-        else
-          headers = compact_headers(payload, resources[:is_pb])
-          headers['Authorization'] = signature(verb, resource_path, headers)
-        end
         request_options = {
           method: verb,
           url: get_request_url(resources),
-          headers: headers,
           open_timeout: @config.open_timeout,
           read_timeout: @config.read_timeout
         }
         if verb == 'GET'
+          headers = compact_headers
+          headers['Authorization'] = signature(verb, resource_path, headers, payload)
+          request_options[:headers] = headers
           request_options[:url] = URI.escape(canonicalized_resource(request_options[:url], payload))
         else
+          headers = compact_headers(payload, resources[:is_pb])
+          headers['Authorization'] = signature(verb, resource_path, headers)
+          request_options[:headers] = headers
           payload = Zlib::Deflate.deflate(payload.encode) if resources[:is_pb]
           request_options[:payload] = payload
         end
@@ -104,7 +101,6 @@ module Aliyun
         if is_pb
           compressed = Zlib::Deflate.deflate(body.encode)
           headers['Content-Length'] = compressed.bytesize.to_s
-          # 日志内容包含的日志必须小于3MB和4096条。
           raise 'content length is larger than 3MB' if headers['Content-Length'].to_i > 3_145_728
 
           headers['Content-MD5'] = Digest::MD5.hexdigest(compressed).upcase
