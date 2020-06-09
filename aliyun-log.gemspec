@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
   spec.email         = ['yingce@live.com']
 
   spec.summary       = 'Aliyun Log SDK for Ruby'
-  spec.description   = 'Aliyun Log SDK for Ruby 阿里云日志服务(SLS) Ruby SDK, 目前仅实现基于Restfull部分接口'
+  spec.description   = 'Aliyun Log SDK for Ruby 阿里云日志服务(SLS) Ruby SDK, 目前仅实现基于Restfull部分接口和简单Model映射'
   spec.homepage      = 'https://github.com/yingce/aliyun-log'
   spec.license       = 'MIT'
 

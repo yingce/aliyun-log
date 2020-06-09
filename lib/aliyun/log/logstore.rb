@@ -30,13 +30,7 @@ module Aliyun
       end
 
       def put_log(attributes)
-        contents = attributes.map { |k, v| { key: k.to_s, value: v.to_s } }
-        log = Aliyun::Log::Protobuf::Log.new(
-          time: Time.now.to_i,
-          contents: contents
-        )
-        log_group = Aliyun::Log::Protobuf::LogGroup.new(logs: [log])
-        put_logs(log_group)
+        @protocol.put_log(project_name, name, attributes)
       end
 
       def get_logs(opts = {})

@@ -1,3 +1,7 @@
+## 0.2.1
+
+- FIX logstore put_log delegate to protocol
+
 ## 0.2.0
 
 - Add support model record relation
