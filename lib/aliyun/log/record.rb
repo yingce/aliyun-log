@@ -10,6 +10,7 @@ require_relative 'record/exception'
 require_relative 'record/field'
 require_relative 'record/persistence'
 require_relative 'record/relation'
+require_relative 'record/scope_registry'
 
 module Aliyun
   module Log
@@ -31,7 +32,7 @@ module Aliyun
 
         define_model_callbacks :save, :create, :initialize
 
-        after_initialize :set_created_at
+        before_save :set_created_at
       end
 
       include Field
@@ -41,25 +42,43 @@ module Aliyun
 
       module ClassMethods
         def logstore(options = {})
-          if options[:timestamps] && !Config.timestamps
+          opt = options.dup
+          if opt[:timestamps] && !Config.timestamps
             field :created_at, :text
-          elsif options[:timestamps] == false && Config.timestamps
+          elsif opt[:timestamps] == false && Config.timestamps
             remove_field :created_at
           end
-          self._schema_load = true if options[:auto_sync] == false
-          self.options = options
+          self._schema_load = true if opt[:auto_sync] == false
+          opt[:field_doc_value] = opt[:field_doc_value] != false
+          self.options = opt
         end
 
-        Relation.instance_methods(false).each do |method|
-          define_method(method) do |args|
-            relation.public_send(method, args)
+        delegate :load, :result, :count, to: :all
+        delegate :where, :query, :search, :sql, :from, :to, :page, :line, :limit, :offset, to: :all
+        delegate :first, :last, :second, :third, :fourth, :fifth, :find_offset, to: :all
+
+        def current_scope
+          ScopeRegistry.value_for(:current_scope, self)
+        end
+
+        def current_scope=(scope)
+          ScopeRegistry.set_value_for(:current_scope, self, scope)
+        end
+
+        def scope(name, body)
+          raise ArgumentError, 'The scope body needs to be callable.' unless body.respond_to?(:call)
+
+          singleton_class.send(:define_method, name) do |*args|
+            scope = all
+            scope = scope.scoping { body.call(*args) }
+            scope
           end
         end
 
-        %i[count load result].each do |method|
-          define_method(method) do
-            relation.public_send(method)
-          end
+        def all
+          scope = current_scope
+          scope ||= relation.from(0).to(Time.now.to_i)
+          scope
         end
 
         private
@@ -101,7 +120,7 @@ module Aliyun
                        end.compact.join(', ')
                      else
                        'not initialized'
-        end
+                     end
 
         "#<#{self.class} #{inspection}>"
       end

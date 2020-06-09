@@ -38,7 +38,7 @@ module Aliyun
         def self.logger
           unless @logger
             @logger = Logger.new(
-              @log_file ||= Config.log_file, MAX_NUM_LOG, ROTATE_SIZE
+              @log_file ||= Config.log_file || IO::NULL, MAX_NUM_LOG, ROTATE_SIZE
             )
             @logger.level = Logging.logger_level
           end

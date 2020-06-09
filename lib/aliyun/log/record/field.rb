@@ -1,8 +1,4 @@
 # frozen_string_literal: true
-require "active_support"
-require "active_support/time"
-require "active_support/core_ext"
-require "active_model"
 
 module Aliyun
   module Log
@@ -29,6 +25,7 @@ module Aliyun
             unless PERMITTED_KEY_TYPES.include?(type)
               raise ArgumentError, "Field #{name} type(#{type}) error, key type only support text/long/double/json"
             end
+
             named = name.to_s
             self.attributes = attributes.merge(name => { type: type }.merge(options))
 

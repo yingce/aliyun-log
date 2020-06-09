@@ -8,7 +8,8 @@ module Aliyun
 
         module ClassMethods
           def logstore_name
-            @logstore_name ||= options[:name] || base_class.name.split('::').last.downcase.pluralize
+            @logstore_name ||= options[:name] ||
+                               base_class.name.split('::').last.underscore.pluralize
           end
 
           def logstore_name=(value)
@@ -79,11 +80,17 @@ module Aliyun
           end
 
           def field_indices
-            if options[:field_index] == true
-              attributes.reject { |_, value| value[:index] == false }
-            else
-              attributes.select { |_, value| value[:index] == true }
+            indices = if options[:field_index] == false
+                        attributes.select { |_, value| value[:index] == true }
+                      else
+                        attributes.reject { |_, value| value[:index] == false }
+                      end
+            indices.each do |_, v|
+              next unless v[:doc_value].nil?
+
+              v[:doc_value] = options[:field_doc_value] != false
             end
+            indices
           end
 
           def create_index

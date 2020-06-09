@@ -11,6 +11,49 @@ module Aliyun
           @opts[:search] ||= '*'
         end
 
+        def inspect
+          "#<#{self.class}>"
+        end
+
+        def first(line = 1)
+          find_offset(0, line, false)
+        end
+
+        def second
+          find_offset(1)
+        end
+
+        def third
+          find_offset(2)
+        end
+
+        def fourth
+          find_offset(3)
+        end
+
+        def fifth
+          find_offset(4)
+        end
+
+        def last(line = 1)
+          find_offset(0, line, true)
+        end
+
+        def find_offset(nth, line = 1, reverse = false)
+          @opts[:line] = line
+          @opts[:offset] = nth
+          @opts[:reverse] = reverse
+          line <= 1 ? load[0] : load
+        end
+
+        def scoping
+          previous = @klass.current_scope
+          @klass.current_scope = self
+          yield
+        ensure
+          @klass.current_scope = previous
+        end
+
         def from(from)
           ts = from.is_a?(Integer) ? from : from.to_time.to_i
           @opts[:from] = ts
@@ -90,6 +133,16 @@ module Aliyun
               attrs[k] = json_attr[k.to_s]
             end
             @klass.new(attrs)
+          end
+        end
+
+        private
+
+        def method_missing(method, *args, &block)
+          if @klass.respond_to?(method)
+            scoping { @klass.public_send(method, *args, &block) }
+          else
+            super
           end
         end
       end

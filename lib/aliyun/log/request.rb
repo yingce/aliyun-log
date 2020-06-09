@@ -83,7 +83,7 @@ module Aliyun
         end
 
         logger.debug("Received HTTP response, code: #{response.code}, headers: " \
-                      "#{response.headers}, body: #{response.body}")
+                      "#{response.headers}, body: #{response.body.force_encoding('UTF-8')}")
 
         response
       end

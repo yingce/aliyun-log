@@ -235,12 +235,18 @@ class User
   # @param field_index: toggle all field indecies
   # @param project: logstore project name
   # @param auto_sync: true or false, logstore automation create
+  # @param field_doc_value: toggle all field analytic index, default true
   logstore name: 'users', field_index: true
+
+  scope :children, -> { search('age <= 18') }
+
+  scope :country , ->(name) { search("location: #{name}") }
 
   # @param 1: field name
   # @param 2: field type, default was text
   # @param index: index toggle, higher than logstore.field_index
   # @param default: default value
+  # @param doc_value: toggle analytic index, default true
   field :age, :long, index: false
   field :time, :text, default: -> { Time.now }
   field :name, :text, default: 'Dace'
@@ -282,6 +288,10 @@ User.search('name: dace')
     .result
 # note:
 # sql limit can't using with raw page() and limit()
+
+# where using raw restful request
+# https://help.aliyun.com/document_detail/29029.html
+User.where(from: 0, to: Time.now.to_i, topic: 'topic3', line: 30).load
 ```
 
 #### result functions
@@ -294,6 +304,14 @@ User.result
 # => [{"__source__"=>"", "__time__"=>"1590000000", "__topic__"=>"", "created_at"=>"2020-06-08T16:36:17+08:00", "name"=>"Dace", "age"=>"28", "time"=>"2020-06-08T16:36:17+08:00", "location"=>"DaceDace"}]
 User.load
 # => [#<User created_at: "2020-06-08T18:39:03+08:00", name: "Dace", age: "28", location: "DaceDace">]
+User.first
+User.first(3)
+User.last
+User.last(3)
+User.second
+User.third
+User.fourth
+User.fifth
 ```
 
 ## Logger

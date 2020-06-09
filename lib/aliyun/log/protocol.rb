@@ -108,7 +108,7 @@ module Aliyun
       def build_log_pb(attrs, time = Time.now.to_i)
         logs = attrs.is_a?(Array) ? attrs : [attrs]
         logs.map do |log_attr|
-          contents = log_attr.compact.map { |k, v| { key: k, value: v.to_s } }
+          contents = log_attr.map { |k, v| { key: k, value: v.to_s } }
           Protobuf::Log.new(time: time, contents: contents)
         end
       end
@@ -182,7 +182,7 @@ module Aliyun
           keys: {}
         }
         fields.each do |k, v|
-          v[:token] = INDEX_DEFAULT_TOKEN if %w[text json].include?(v[:type].to_s) && v[:token].blank?
+          v[:token] = INDEX_DEFAULT_TOKEN if %w[text json].include?(v[:type].to_s) && v[:token].nil?
           body[:keys][k] = v
         end
         @http.post({ project: project_name, logstore: logstore_name, action: 'index' }, body.to_json)
@@ -196,7 +196,7 @@ module Aliyun
           keys: {}
         }
         fields.each do |k, v|
-          v[:token] = INDEX_DEFAULT_TOKEN if %w[text json].include?(v[:type].to_s) && v[:token].blank?
+          v[:token] = INDEX_DEFAULT_TOKEN if %w[text json].include?(v[:type].to_s) && v[:token].nil?
           body[:keys][k] = v
         end
         @http.put({ project: project_name, logstore: logstore_name, action: 'index' }, body.to_json)

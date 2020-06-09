@@ -1,3 +1,11 @@
+## 0.2.6
+
+- UPDATE logstore name to underscore pluralize
+- UPDATE logstore index doc_value default to turn on
+- UPDATE set log_file to /dev/null by default
+- ADD scope support
+- OPT model delegate relation
+
 ## 0.2.1
 
 - FIX logstore put_log delegate to protocol
