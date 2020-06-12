@@ -56,9 +56,8 @@ module Aliyun
           def create(data, opts = {})
             auto_load_schema
             if data.is_a?(Array)
-              logs = []
-              data.each do |log_attr|
-                logs << new(log_attr).save_array
+              logs = data.map do |log_attr|
+                new(log_attr).save_array
               end
               res = Log.record_connection.put_log(project_name, logstore_name, logs, opts)
               res.code == 200
@@ -80,17 +79,11 @@ module Aliyun
           end
 
           def field_indices
-            indices = if options[:field_index] == false
-                        attributes.select { |_, value| value[:index] == true }
-                      else
-                        attributes.reject { |_, value| value[:index] == false }
-                      end
-            indices.each do |_, v|
-              next unless v[:doc_value].nil?
-
-              v[:doc_value] = options[:field_doc_value] != false
+            if options[:field_index] == false
+              attributes.select { |_, value| value[:index] == true }
+            else
+              attributes.reject { |_, value| value[:index] == false }
             end
-            indices
           end
 
           def create_index
@@ -104,17 +97,37 @@ module Aliyun
           def update_index
             conf_res = Log.record_connection.get_index(project_name, logstore_name)
             raw_conf = JSON.parse(conf_res)
-            index_conf = raw_conf.dup
-            field_indices.each do |k, v|
-              index_conf['keys'][k.to_s] ||= v
+            index_conf = raw_conf.deep_dup
+            field_index_types.each do |k, v|
+              index_conf['keys'][k.to_s] ||= {}
+              index_conf['keys'][k.to_s].merge!(v.as_json)
             end
             return if index_conf['keys'] == raw_conf['keys']
 
             Log.record_connection.update_index(
               project_name,
               logstore_name,
-              index_conf['keys']
+              index_conf['keys'].with_indifferent_access
             )
+          end
+
+          def field_index_types
+            field_indices.tap do |tap|
+              tap.each do |_, v|
+                v[:alias] ||= ''
+                v[:caseSensitive] ||= false
+                v[:chn] ||= false
+                v[:doc_value] = options[:field_doc_value] != false if v[:doc_value].nil?
+              end
+            end
+          end
+        end
+
+        def dump_attributes
+          attributes.dup.tap do |tap|
+            tap.each do |k, v|
+              tap[k] = TypeCasting.dump_field(v, self.class.attributes[k])
+            end
           end
         end
 
@@ -123,7 +136,11 @@ module Aliyun
           run_callbacks(:create) do
             run_callbacks(:save) do
               if valid?
-                res = Log.record_connection.put_log(self.class.project_name, self.class.logstore_name, attributes)
+                res = Log.record_connection.put_log(
+                  self.class.project_name,
+                  self.class.logstore_name,
+                  dump_attributes
+                )
                 res.code == 200
               else
                 false
@@ -135,7 +152,7 @@ module Aliyun
         def save_array
           run_callbacks(:create) do
             run_callbacks(:save) do
-              validate! && attributes
+              validate! && dump_attributes
             end
           end
         end

@@ -7,7 +7,8 @@ module Aliyun
       @endpoint = 'https://cn-beijing.log.aliyuncs.com'
       @open_timeout = 10
       @read_timeout = 120
-      @log_level = Logger::DEBUG
+      @log_level = Logger::WARN
+      @log_file = STDOUT
       @timestamps = true
       class << self
         attr_accessor :endpoint, :access_key_id, :access_key_secret,

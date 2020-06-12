@@ -8,12 +8,11 @@ module Aliyun
           @klass = klass
           @opts = opts
           @klass.auto_load_schema
-          @opts[:search] ||= '*'
         end
 
-        def inspect
-          "#<#{self.class}>"
-        end
+        # def inspect
+        #   "#<#{self.class}>"
+        # end
 
         def first(line = 1)
           find_offset(0, line, false)
@@ -87,13 +86,15 @@ module Aliyun
           self
         end
 
-        def search(str)
-          @opts[:search] = str
+        def search(*statement)
+          ql = statement_ql(*statement)
+          @opts[:search] = ql if ql.present?
           self
         end
 
-        def sql(str)
-          @opts[:sql] = str
+        def sql(*statement)
+          ql = statement_ql(*statement)
+          @opts[:sql] = ql if ql.present?
           self
         end
 
@@ -120,7 +121,7 @@ module Aliyun
             query[:line] ||= 100
             query[:offset] = query[:page] * query[:line]
           end
-          query[:query] = query[:search]
+          query[:query] = query[:search] || '*'
           query[:query] = "#{query[:query]}|#{query[:sql]}" if query[:sql].present?
           res = Log.record_connection.get_logs(@klass.project_name, @klass.logstore_name, query)
           JSON.parse(res)
@@ -128,15 +129,71 @@ module Aliyun
 
         def load
           result.map do |json_attr|
-            attrs = {}
-            @klass.attributes.keys.each do |k, _|
-              attrs[k] = json_attr[k.to_s]
+            record = @klass.new
+            json_attr.each do |key, value|
+              record.send("#{key}=", value) if record.respond_to?("#{key}=")
             end
-            @klass.new(attrs)
+            record
           end
         end
 
         private
+
+        def statement_ql(*statement)
+          if statement.size == 1
+            sanitize_hash(statement.first)
+          elsif statement.size > 1
+            sanitize_array(*statement)
+          end
+        end
+
+        def sanitize_hash(search_content)
+          return search_content unless search_content.is_a?(Hash)
+
+          search_content.select { |_, v| v.present? }.map do |key, value|
+            unless @klass.attributes[:"#{key}"]
+              raise UnknownAttributeError, "unknown field '#{key}' for #{@klass.name}."
+            end
+
+            "#{key}: #{value}"
+          end.join(' AND ')
+        end
+
+        def sanitize_array(*ary)
+          statement, *values = ary
+          if values.first.is_a?(Hash) && /:\w+/.match?(statement)
+            replace_named_bind_variables(statement, values.first)
+          elsif statement.include?('?')
+            replace_bind_variables(statement, values)
+          elsif statement.blank?
+            statement
+          else
+            statement % values.collect(&:to_s)
+          end
+        end
+
+        def replace_named_bind_variables(statement, bind_vars)
+          statement.gsub(/(:?):([a-zA-Z]\w*)/) do |match|
+            if bind_vars.include?(match = Regexp.last_match(2).to_sym)
+              "'#{bind_vars[match]}'"
+            else
+              raise ParseStatementInvalid, "missing value for :#{match} in #{statement}"
+            end
+          end
+        end
+
+        def replace_bind_variables(statement, values)
+          expected = statement.count('?')
+          provided = values.size
+          if expected != provided
+            raise ParseStatementInvalid, "wrong number of bind variables (#{provided} " \
+                                         "for #{expected}) in: #{statement}"
+          end
+          bound = values.dup
+          statement.gsub(/\?/) do
+            "'#{bound.shift}'"
+          end
+        end
 
         def method_missing(method, *args, &block)
           if @klass.respond_to?(method)

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'type_casting'
+
 module Aliyun
   module Log
     module Record
@@ -18,10 +20,12 @@ module Aliyun
 
         included do
           class_attribute :attributes, instance_accessor: false, default: {}
+          extend Common::Logging
         end
 
         module ClassMethods
-          def field(name, type = :text, options = {})
+          def field(name, options = {})
+            type = options[:type] || :text
             unless PERMITTED_KEY_TYPES.include?(type)
               raise ArgumentError, "Field #{name} type(#{type}) error, key type only support text/long/double/json"
             end
@@ -33,7 +37,7 @@ module Aliyun
             warn_about_method_overriding("#{named}=", name)
             warn_about_method_overriding("#{named}?", name)
 
-            define_attribute_method(name) # Dirty API
+            define_attribute_method(name)
 
             generated_methods.module_eval do
               define_method(named) { read_attribute(named) }
@@ -61,7 +65,6 @@ module Aliyun
               remove_method field
               remove_method :"#{field}="
               remove_method :"#{field}?"
-              remove_method :"#{field}_before_type_cast"
             end
           end
 
@@ -77,7 +80,8 @@ module Aliyun
 
           def warn_about_method_overriding(method_name, field_name)
             if instance_methods.include?(method_name.to_sym)
-              Common::Logging.logger.warn("Method #{method_name} generated for the field #{field_name} overrides already existing method")
+              logger.warn("Method #{method_name} generated for the field #{field_name} " \
+                          'overrides already existing method')
             end
           end
         end
@@ -103,7 +107,7 @@ module Aliyun
         attr_accessor :attributes
 
         def write_attribute(name, value)
-          attributes[name.to_sym] = value
+          attributes[name.to_sym] = TypeCasting.cast_field(value, self.class.attributes[name.to_sym])
         end
 
         alias []= write_attribute
@@ -114,7 +118,7 @@ module Aliyun
         alias [] read_attribute
 
         def set_created_at
-          self.created_at ||= DateTime.now.in_time_zone(Time.zone).to_s if timestamps_enabled?
+          self.created_at ||= DateTime.now.in_time_zone(Time.zone).iso8601 if timestamps_enabled?
         end
 
         def timestamps_enabled?

@@ -9,8 +9,7 @@ require 'forwardable'
 require_relative 'record/exception'
 require_relative 'record/field'
 require_relative 'record/persistence'
-require_relative 'record/relation'
-require_relative 'record/scope_registry'
+require_relative 'record/scoping'
 
 module Aliyun
   module Log
@@ -28,7 +27,7 @@ module Aliyun
 
         Log.included_models << self unless Log.included_models.include? self
 
-        field :created_at, :text if Config.timestamps
+        field :created_at, type: :text, cast_type: :datetime if Config.timestamps
 
         define_model_callbacks :save, :create, :initialize
 
@@ -37,6 +36,7 @@ module Aliyun
 
       include Field
       include Persistence
+      include Scoping
 
       include ActiveModel::AttributeMethods
 
@@ -51,40 +51,6 @@ module Aliyun
           self._schema_load = true if opt[:auto_sync] == false
           opt[:field_doc_value] = opt[:field_doc_value] != false
           self.options = opt
-        end
-
-        delegate :load, :result, :count, to: :all
-        delegate :where, :query, :search, :sql, :from, :to, :page, :line, :limit, :offset, to: :all
-        delegate :first, :last, :second, :third, :fourth, :fifth, :find_offset, to: :all
-
-        def current_scope
-          ScopeRegistry.value_for(:current_scope, self)
-        end
-
-        def current_scope=(scope)
-          ScopeRegistry.set_value_for(:current_scope, self, scope)
-        end
-
-        def scope(name, body)
-          raise ArgumentError, 'The scope body needs to be callable.' unless body.respond_to?(:call)
-
-          singleton_class.send(:define_method, name) do |*args|
-            scope = all
-            scope = scope.scoping { body.call(*args) }
-            scope
-          end
-        end
-
-        def all
-          scope = current_scope
-          scope ||= relation.from(0).to(Time.now.to_i)
-          scope
-        end
-
-        private
-
-        def relation
-          Relation.new(self)
         end
       end
 

@@ -34,6 +34,8 @@
 ### Model 映射
 
 - 支持简单 Model 映射
+- 类型显式 Cast 映射
+- Scope 简单支持
 
 ### TODO
 
@@ -243,13 +245,15 @@ class User
   scope :country , ->(name) { search("location: #{name}") }
 
   # @param 1: field name
-  # @param 2: field type, default was text
+  # @param type: text/long/double/json, default was text
+  # @param cast_type: [:string, :integer, :bigdecimal, :json, :date, :datetime]
   # @param index: index toggle, higher than logstore.field_index
   # @param default: default value
   # @param doc_value: toggle analytic index, default true
-  field :age, :long, index: false
-  field :time, :text, default: -> { Time.now }
-  field :name, :text, default: 'Dace'
+  # @param caseSensitive: toggle word case sensitive, default false
+  field :age, type: :long, index: false
+  field :time, type: :text, cast_type: :datetime default: -> { Time.now }
+  field :name, default: 'Dace'
   field :location, :text
 
   # ActiveModel::Validations
@@ -275,6 +279,9 @@ User.limit(20) # default limit 100
 User.page(30) # offset will set to 600
 User.search('*').sql("SELECT name")
 # Log Query: "*|SELECT name"
+User.search(age: 18, location: 'beijing')
+User.search("age = ? AND location = ?", 18, 'beijing')
+# Log Query: "age: 18 and location: beijing|SELECT name"
 
 # support chain responsibility
 users = User.search('name: dace')

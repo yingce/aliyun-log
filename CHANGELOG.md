@@ -1,3 +1,9 @@
+## 0.2.8
+
+- ADD cast type mapping support
+- ADD relation simple hash search
+- ADD relation string match search
+
 ## 0.2.6
 
 - UPDATE logstore name to underscore pluralize
