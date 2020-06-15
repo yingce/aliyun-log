@@ -10,9 +10,9 @@ module Aliyun
           @klass.auto_load_schema
         end
 
-        # def inspect
-        #   "#<#{self.class}>"
-        # end
+        def inspect
+          "#<#{self.class}>"
+        end
 
         def first(line = 1)
           find_offset(0, line, false)
@@ -93,7 +93,10 @@ module Aliyun
         end
 
         def sql(*statement)
-          ql = statement_ql(*statement)
+          unless statement[0].is_a?(String)
+            raise ParseStatementInvalid, 'Only support string statement'
+          end
+          ql = sanitize_array(*statement)
           @opts[:sql] = ql if ql.present?
           self
         end
@@ -151,11 +154,23 @@ module Aliyun
           return search_content unless search_content.is_a?(Hash)
 
           search_content.select { |_, v| v.present? }.map do |key, value|
-            unless @klass.attributes[:"#{key}"]
+            options = @klass.attributes[:"#{key}"]
+            unless options
               raise UnknownAttributeError, "unknown field '#{key}' for #{@klass.name}."
             end
 
-            "#{key}: #{value}"
+            raise_if_hash_quote(value)
+
+            cast_type = options[:cast_type]
+            if value.is_a?(Array)
+              values = value.uniq.map { |v| _quote(cast_type, v) }
+              str_values = values.map { |v| "#{key}: #{v}" }.join(' OR ')
+              values.size > 1 ? "(#{str_values})" : str_values
+            elsif value.is_a?(Range)
+              "#{key} in [#{value.begin} #{value.end}]"
+            else
+              "#{key}: #{_quote(cast_type, value)}"
+            end
           end.join(' AND ')
         end
 
@@ -165,7 +180,7 @@ module Aliyun
             replace_named_bind_variables(statement, values.first)
           elsif statement.include?('?')
             replace_bind_variables(statement, values)
-          elsif statement.blank?
+          elsif statement.blank? || values.blank?
             statement
           else
             statement % values.collect(&:to_s)
@@ -175,7 +190,14 @@ module Aliyun
         def replace_named_bind_variables(statement, bind_vars)
           statement.gsub(/(:?):([a-zA-Z]\w*)/) do |match|
             if bind_vars.include?(match = Regexp.last_match(2).to_sym)
-              "'#{bind_vars[match]}'"
+              match_value = bind_vars[match]
+              raise_if_hash_quote(match_value)
+              if match_value.is_a?(Array) || match_value.is_a?(Range)
+                values = match_value.map { |v| _quote_type_value(v) }
+                values.join(', ')
+              else
+                _quote_type_value(match_value)
+              end
             else
               raise ParseStatementInvalid, "missing value for :#{match} in #{statement}"
             end
@@ -191,7 +213,42 @@ module Aliyun
           end
           bound = values.dup
           statement.gsub(/\?/) do
-            "'#{bound.shift}'"
+            value = bound.shift
+            raise_if_hash_quote(value)
+            if value.is_a?(Array) || value.is_a?(Range)
+              values = value.map { |v| _quote_type_value(v) }
+              values.join(', ')
+            else
+              _quote_type_value(value)
+            end
+          end
+        end
+
+        def _quote(type, value)
+          v = TypeCasting.dump_field(value, cast_type: type || :string)
+          case type
+          when :string, nil then "'#{v.to_s}'"
+          when :bigdecimal  then v.to_s("F")
+          when :integer     then v.to_s.to_i
+          when :datetime, :date then "'#{v.iso8601}'"
+          else
+            value.to_s
+          end
+        end
+
+        def _quote_type_value(value)
+          case value.class.name
+          when 'String'                   then "'#{value.to_s}'"
+          when 'BigDecimal'               then value.to_s("F")
+          when 'Date', 'DateTime', 'Time' then "'#{value.iso8601}'"
+          else
+            value
+          end
+        end
+
+        def raise_if_hash_quote(value)
+          if value.is_a?(Hash) || value.is_a?(ActiveSupport::HashWithIndifferentAccess)
+            raise ParseStatementInvalid, "can't quote Hash"
           end
         end
 

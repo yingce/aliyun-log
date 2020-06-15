@@ -1,3 +1,7 @@
+## 0.2.9
+
+- UPDATE relation hash search, support array,range and type casting
+
 ## 0.2.8
 
 - ADD cast type mapping support
