@@ -66,7 +66,7 @@ module Aliyun
 
           def dump(value)
             if value.respond_to?(:to_date)
-              value.to_datetime.iso8601
+              value.to_date.to_s
             else
               value.to_s
             end

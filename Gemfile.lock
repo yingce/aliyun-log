@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    aliyun-log (0.2.9)
+    aliyun-log (0.2.10)
       activemodel
       activesupport
       protobuf (~> 3.10.0)
@@ -10,9 +10,9 @@ PATH
 GEM
   remote: https://rubygems.org/
   specs:
-    activemodel (6.0.3.1)
-      activesupport (= 6.0.3.1)
-    activesupport (6.0.3.1)
+    activemodel (6.0.3.2)
+      activesupport (= 6.0.3.2)
+    activesupport (6.0.3.2)
       concurrent-ruby (~> 1.0, >= 1.0.2)
       i18n (>= 0.7, < 2)
       minitest (~> 5.1)
@@ -62,7 +62,7 @@ GEM
     unf (0.1.4)
       unf_ext
     unf_ext (0.0.7.7)
-    zeitwerk (2.3.0)
+    zeitwerk (2.3.1)
 
 PLATFORMS
   ruby

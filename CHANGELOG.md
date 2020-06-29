@@ -1,3 +1,7 @@
+## 0.2.10
+
+- FIX type Date cast dump to standard string
+
 ## 0.2.9
 
 - UPDATE relation hash search, support array,range and type casting
