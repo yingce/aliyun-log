@@ -1,3 +1,9 @@
+## 0.2.11
+
+- ADD Float type for field
+- ADD select group order query function
+- FIX where function
+
 ## 0.2.10
 
 - FIX type Date cast dump to standard string

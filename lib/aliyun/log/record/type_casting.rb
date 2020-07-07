@@ -9,7 +9,7 @@ module Aliyun
         TYPE_MAPPING = {
           text: :string,
           long: :integer,
-          double: :bigdecimal,
+          double: :float,
           json: :json
         }.freeze
 
@@ -148,6 +148,26 @@ module Aliyun
           end
         end
 
+        class FloatType < Value
+          def cast(value)
+            if value == true
+              1
+            elsif value == false
+              0
+            elsif value.is_a?(Symbol)
+              value.to_s.to_f
+            elsif value.is_a?(String) && value.blank?
+              nil
+            elsif value.is_a?(Float) && !value.finite?
+              nil
+            elsif !value.respond_to?(:to_f)
+              nil
+            else
+              value.to_f
+            end
+          end
+        end
+
         class JsonType < Value
           def cast(value)
             return value unless value.is_a?(String)
@@ -183,6 +203,7 @@ module Aliyun
           register(:datetime, DateTimeType)
           register(:bigdecimal, BigDecimalType)
           register(:integer, IntegerType)
+          register(:float, FloatType)
           register(:json, JsonType)
         end
       end

@@ -35,6 +35,7 @@ module Aliyun
           end
 
           def sync_index
+            return if field_indices.blank?
             has_index? ? update_index : create_index
           end
 

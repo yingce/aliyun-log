@@ -10,9 +10,10 @@ module Aliyun
         extend ActiveSupport::Concern
 
         module ClassMethods
-          delegate :load, :result, :count, to: :all
-          delegate :where, :query, :search, :sql, :from, :to,
-                   :page, :line, :limit, :offset, to: :all
+          delegate :load, :result, :count, :sum, to: :all
+          delegate :where, :query, :search, :sql, :from, :to, :api,
+                   :page, :line, :limit, :offset, :select, :group,
+                   :order, :to_sql, to: :all
           delegate :first, :last, :second, :third, :fourth, :fifth, :find_offset, to: :all
 
           def current_scope

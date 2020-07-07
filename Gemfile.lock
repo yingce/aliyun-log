@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    aliyun-log (0.2.10)
+    aliyun-log (0.2.11)
       activemodel
       activesupport
       protobuf (~> 3.10.0)

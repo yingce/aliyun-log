@@ -35,14 +35,28 @@ module Aliyun
         end
 
         def last(line = 1)
-          find_offset(0, line, true)
+          data = find_offset(0, line, true)
+          line > 1 ? data.reverse : data
         end
 
         def find_offset(nth, line = 1, reverse = false)
+          # @opts[:select] = '*'
           @opts[:line] = line
           @opts[:offset] = nth
-          @opts[:reverse] = reverse
-          line <= 1 ? load[0] : load
+          if @opts[:order].present? && reverse
+            conds = []
+            @opts[:order].split(',').each do |field|
+              field.gsub!(/\s+desc|asc.*/i, '')
+              conds << "#{field.strip} DESC"
+            end
+            @opts[:order] = conds.join(', ')
+          end
+          @opts[:order] ||= reverse ? '__time__ DESC' : '__time__ ASC'
+          if @opts[:select].blank?
+            line <= 1 ? load[0] : load
+          else
+            line <= 1 ? result[0] : result
+          end
         end
 
         def scoping
@@ -78,10 +92,16 @@ module Aliyun
 
         def page(val)
           @opts[:page] = val - 1 if val >= 1
+          singleton_class.send(:define_method, :total_count) do
+            @total_count ||= count
+          end
+          singleton_class.send(:define_method, :total_pages) do
+            (total_count.to_f / (@opts[:line] || 100)).ceil
+          end
           self
         end
 
-        def where(opts)
+        def api(opts)
           @opts.merge!(opts)
           self
         end
@@ -101,33 +121,76 @@ module Aliyun
           self
         end
 
+        def where(*statement)
+          if statement[0].is_a?(String)
+            ql = sanitize_array(*statement)
+            @opts[:where] = ql
+          else
+            ql = statement_ql(*statement)
+            @opts[:search] = ql
+          end
+          self
+        end
+
+        def select(*fields)
+          @opts[:select] = fields.join(', ')
+          self
+        end
+
+        def group(*fields)
+          @opts[:group] = fields.join(', ')
+          self
+        end
+
+        def order(*fields)
+          if fields[0].is_a?(Hash)
+            @opts[:order] = fields[0].map do |k, v|
+              unless %w[asc desc].include?(v.to_s)
+                raise ArgumentError, "Direction \"#{v}\" is invalid. Valid directions are: [:asc, :desc, :ASC, :DESC]" 
+              end
+              "#{k} #{v}"
+            end.join(', ')
+          else
+            @opts[:order] = fields.join(', ')
+          end
+          self
+        end
+
         def query(opts = {})
           @opts[:query] = opts
           self
         end
 
         def count
+          # @opts[:select] = 'COUNT(*) as count'
+          _sql = to_sql
+          sql = "SELECT COUNT(*) as count"
+          sql += " FROM(#{_sql})" if _sql.present?
           query = @opts.dup
-          if query[:query].blank?
-            where_cond = query[:sql].split(/where /i)[1] if query[:sql].present?
-            query[:query] = "#{query[:search]}|SELECT COUNT(*) as count"
-            query[:query] = "#{query[:query]} WHERE #{where_cond}" if where_cond.present?
-          end
-          res = Log.record_connection.get_logs(@klass.project_name, @klass.logstore_name, query)
-          res = JSON.parse(res.body)
-          res[0]['count'].to_i
+          query[:query] = "#{query[:search] || '*'}|#{sql}"
+          res = execute(query)
+          res.dig(0, 'count').to_i
+        end
+
+        def sum(field)
+          @opts[:select] = "SUM(#{field}) as sum"
+          query = @opts.dup
+          query[:query] = "#{query[:search] || '*'}|#{to_sql}"
+          res = execute(query)
+          res.dig(0, 'sum').to_f
         end
 
         def result
           query = @opts.dup
-          if query[:page]
-            query[:line] ||= 100
-            query[:offset] = query[:page] * query[:line]
-          end
           query[:query] = query[:search] || '*'
-          query[:query] = "#{query[:query]}|#{query[:sql]}" if query[:sql].present?
-          res = Log.record_connection.get_logs(@klass.project_name, @klass.logstore_name, query)
-          JSON.parse(res)
+          sql = to_sql
+          if sql.present?
+            query[:query] += "|#{sql}"
+            @opts[:line] = nil
+            @opts[:offset] = nil
+            @opts[:page] = nil
+          end
+          execute(query)
         end
 
         def load
@@ -140,7 +203,36 @@ module Aliyun
           end
         end
 
+        def to_sql
+          opts = @opts.dup
+          sql_query = []
+          sql_query << "WHERE #{opts[:where]}" if opts[:where].present?
+          sql_query << "GROUP BY #{opts[:group]}" if opts[:group].present?
+          sql_query << "ORDER BY #{opts[:order]}" if opts[:order].present?
+          if sql_query.present? || opts[:select].present?
+            sql_query.insert(0, "SELECT #{opts[:select] || '*'}")
+            sql_query.insert(1, 'FROM log')
+            if opts[:line] || opts[:page] || opts[:offset]
+              parse_page
+              sql_query << "LIMIT #{@opts[:offset]},#{@opts[:line]}"
+            end
+          end
+          "#{opts[:query]}#{sql_query.join(' ')}"
+        end
+
         private
+
+        def execute(query)
+          puts query.slice(:from, :to, :search, :query).to_json
+          res = Log.record_connection.get_logs(@klass.project_name, @klass.logstore_name, query)
+          JSON.parse(res)
+        end
+
+        def parse_page
+          @opts[:line] ||= 100
+          @opts[:page] ||= 0
+          @opts[:offset] = @opts[:page] * @opts[:line]
+        end
 
         def statement_ql(*statement)
           if statement.size == 1
@@ -225,7 +317,7 @@ module Aliyun
         end
 
         def _quote(type, value)
-          v = TypeCasting.dump_field(value, cast_type: type || :string)
+          v = TypeCasting.cast_field(value, cast_type: type || :string)
           case type
           when :string, nil then "'#{v.to_s}'"
           when :bigdecimal  then v.to_s("F")
@@ -239,7 +331,7 @@ module Aliyun
         def _quote_type_value(value)
           case value.class.name
           when 'String'                   then "'#{value.to_s}'"
-          when 'BigDecimal'               then value.to_s("F")
+          when 'BigDecimal', 'Float'      then value.to_s("F")
           when 'Date', 'DateTime', 'Time' then "'#{value.iso8601}'"
           else
             value

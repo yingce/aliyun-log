@@ -36,6 +36,9 @@
 - 支持简单 Model 映射
 - 类型显式 Cast 映射
 - Scope 简单支持
+- Select
+- Group
+- Count
 
 ### TODO
 
@@ -246,14 +249,14 @@ class User
 
   # @param 1: field name
   # @param type: text/long/double/json, default was text
-  # @param cast_type: [:string, :integer, :bigdecimal, :json, :date, :datetime]
+  # @param cast_type: [:string, :integer, :float, :bigdecimal, :json, :date, :datetime]
   # @param index: index toggle, higher than logstore.field_index
   # @param default: default value
   # @param doc_value: toggle analytic index, default true
   # @param caseSensitive: toggle word case sensitive, default false
   field :age, type: :long, index: false
-  field :time, type: :text, cast_type: :datetime default: -> { Time.now }
-  field :name, default: 'Dace'
+  field :time, type: :text, cast_type: :datetime, default: -> { Time.now }
+field :name, default: 'Dace'
   field :location, :text
 
   # ActiveModel::Validations
@@ -319,6 +322,9 @@ User.second
 User.third
 User.fourth
 User.fifth
+
+User.select('name, count(name)').group(:name).result
+User.select(:name).order(:age).result
 ```
 
 ## Logger
