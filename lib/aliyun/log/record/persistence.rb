@@ -100,6 +100,7 @@ module Aliyun
             raw_conf = JSON.parse(conf_res)
             index_conf = raw_conf.deep_dup
             field_index_types.each do |k, v|
+              index_conf['keys'] ||= {}
               index_conf['keys'][k.to_s] ||= {}
               index_conf['keys'][k.to_s].merge!(v.as_json)
             end

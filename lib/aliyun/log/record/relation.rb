@@ -162,11 +162,15 @@ module Aliyun
         end
 
         def count
-          # @opts[:select] = 'COUNT(*) as count'
-          _sql = to_sql
-          sql = "SELECT COUNT(*) as count"
-          sql += " FROM(#{_sql})" if _sql.present?
           query = @opts.dup
+          if query[:select].blank?
+            @opts[:select] = 'COUNT(*) as count'
+            sql = to_sql
+          else
+            _sql = to_sql
+            sql = "SELECT COUNT(*) as count"
+            sql += " FROM(#{_sql})" if _sql.present?
+          end
           query[:query] = "#{query[:search] || '*'}|#{sql}"
           res = execute(query)
           res.dig(0, 'count').to_i
@@ -204,6 +208,7 @@ module Aliyun
         end
 
         def to_sql
+          return @opts[:sql] if @opts[:sql].present?
           opts = @opts.dup
           sql_query = []
           sql_query << "WHERE #{opts[:where]}" if opts[:where].present?

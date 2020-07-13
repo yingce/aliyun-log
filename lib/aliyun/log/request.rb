@@ -7,6 +7,8 @@ require 'digest'
 require 'date'
 require 'zlib'
 
+require_relative 'utils'
+
 module Aliyun
   module Log
     class Request
@@ -14,25 +16,6 @@ module Aliyun
 
       def initialize(config)
         @config = config
-      end
-
-      def get_resource_path(resources = {})
-        resources ||= {}
-        res = '/'
-        if resources[:logstore]
-          res = "#{res}logstores"
-          res = "#{res}/#{resources[:logstore]}" unless resources[:logstore].empty?
-        end
-        res = "#{res}/#{resources[:action]}" if resources[:action]
-        res
-      end
-
-      def get_request_url(resources = {})
-        resources ||= {}
-        url = URI.parse(@config.endpoint)
-        url.host = "#{resources[:project]}." + url.host if resources[:project]
-        url.path = get_resource_path(resources)
-        url.to_s
       end
 
       def get(resources, payload = {})
@@ -52,10 +35,11 @@ module Aliyun
       end
 
       def do_request(verb, resources, payload)
-        resource_path = get_resource_path(resources)
+        resource_path = Utils.get_resource_path(resources)
+        url = Utils.get_request_url(@config.endpoint, resources)
         request_options = {
           method: verb,
-          url: get_request_url(resources),
+          url: url,
           open_timeout: @config.open_timeout,
           read_timeout: @config.read_timeout
         }
@@ -75,15 +59,17 @@ module Aliyun
         response = request.execute do |resp|
           if resp.code >= 300
             e = ServerError.new(resp)
-            logger.error(e.to_s)
+            logger.error("#{e.to_s} #{resp.code} #{resp}")
             raise e
           else
             resp.return!
           end
         end
 
-        logger.debug("Received HTTP response, code: #{response.code}, headers: " \
-                      "#{response.headers}, body: #{response.body.force_encoding('UTF-8')}")
+        logger.debug("Received HTTP response, code: #{response.code}, " \
+                      "url: #{request_options[:url]}, " \
+                      "method: #{verb}, headers: #{response.headers}, " \
+                      "body: #{response.body.force_encoding('UTF-8')}")
 
         response
       end

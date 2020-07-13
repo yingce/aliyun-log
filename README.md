@@ -256,8 +256,8 @@ class User
   # @param caseSensitive: toggle word case sensitive, default false
   field :age, type: :long, index: false
   field :time, type: :text, cast_type: :datetime, default: -> { Time.now }
-field :name, default: 'Dace'
-  field :location, :text
+  field :name, default: 'Dace'
+  field :location, type: :text
 
   # ActiveModel::Validations
   validates :name, :what, presence: true

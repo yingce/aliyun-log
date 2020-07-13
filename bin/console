@@ -12,4 +12,11 @@ require 'aliyun/log'
 # Pry.start
 
 require 'irb'
+Aliyun::Log.configure do |c|
+  c.access_key_id = ENV['ALIYUN_LOG_ACCESS_KEY_ID']
+  c.access_key_secret = ENV['ALIYUN_LOG_ACCESS_KEY_SECRET']
+  c.project = ENV['ALIYUN_LOG_PROJECT_NAME']
+  c.log_level = 0
+end
+load 'ping_log.rb'
 IRB.start(__FILE__)

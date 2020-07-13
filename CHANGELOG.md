@@ -1,3 +1,8 @@
+## 0.2.12
+
+- FIX record sync index bug
+- RSpec testing case
+
 ## 0.2.11
 
 - ADD Float type for field
