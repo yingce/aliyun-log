@@ -4,7 +4,7 @@ require 'active_support'
 require 'active_support/time'
 require 'active_support/core_ext'
 require 'active_model'
-require 'forwardable'
+require 'monitor'
 
 require_relative 'record/exception'
 require_relative 'record/field'
@@ -22,16 +22,21 @@ module Aliyun
 
         class_attribute :options, instance_accessor: false, default: {}
         class_attribute :base_class, instance_accessor: false, default: self
-        class_attribute :log_connection, instance_accessor: false
         class_attribute :_schema_load, default: false
 
         Log.included_models << self unless Log.included_models.include? self
+
+        field :__time__, type: :long, cast_type: :integer
+        field :__topic__
+        field :__source__
 
         field :created_at, type: :text, cast_type: :datetime if Config.timestamps
 
         define_model_callbacks :save, :create, :initialize
 
         before_save :set_created_at
+
+        @lock = Monitor.new
       end
 
       include Field
@@ -77,6 +82,10 @@ module Aliyun
             end
           end
         end
+      end
+
+      def new_record?
+        @new_record == true
       end
 
       def inspect

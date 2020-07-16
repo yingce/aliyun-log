@@ -55,7 +55,17 @@ module Aliyun
           end
         end
 
-        class StringType < Value; end
+        class StringType < Value
+          def cast(value)
+            if value.nil?
+              ''
+            elsif value.is_a? String
+              value.dup
+            else
+              value.to_s
+            end
+          end
+        end
 
         class DateType < Value
           def cast(value)

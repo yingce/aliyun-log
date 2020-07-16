@@ -46,6 +46,7 @@
 - [ ] 优化 Model 映射创建数据
 - [ ] 完善 restful 接口
 - [ ] 完善 Model 逻辑结构
+- [ ] 增加 消费组接口
 
 ## Installation
 
@@ -239,7 +240,7 @@ class User
   # @param name: default using class name pluralize
   # @param field_index: toggle all field indecies
   # @param project: logstore project name
-  # @param auto_sync: true or false, logstore automation create
+  # @param auto_sync: logstore automation create, default true
   # @param field_doc_value: toggle all field analytic index, default true
   logstore name: 'users', field_index: true
 
@@ -254,10 +255,12 @@ class User
   # @param default: default value
   # @param doc_value: toggle analytic index, default true
   # @param caseSensitive: toggle word case sensitive, default false
+  # @param log_tag: toggle log_tag, default false
   field :age, type: :long, index: false
   field :time, type: :text, cast_type: :datetime, default: -> { Time.now }
   field :name, default: 'Dace'
   field :location, type: :text
+  filed :__type__, log_tag: true
 
   # ActiveModel::Validations
   validates :name, :what, presence: true

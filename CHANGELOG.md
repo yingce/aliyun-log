@@ -1,3 +1,11 @@
+## 0.2.13
+
+- FIX from log surplus
+- OPT model record auto_load_schema with lock
+- FIX model record put logs validate!
+- ADD support __time__ __topic__ __source__ meta field
+- ADD support log_tag store
+
 ## 0.2.12
 
 - FIX record sync index bug

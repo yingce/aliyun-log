@@ -4,6 +4,14 @@ module Aliyun
   module Log
     module Record
       module Persistence
+        RESERVED_FIELDS = %i[
+          __time__
+          __topic__
+          __source__
+          __partition_time__
+          __extract_others__
+        ].freeze
+
         extend ActiveSupport::Concern
 
         module ClassMethods
@@ -40,11 +48,12 @@ module Aliyun
           end
 
           def auto_load_schema
-            return if _schema_load
-
-            create_logstore
-            sync_index
-            self._schema_load = true
+            @lock.synchronize do
+              return if _schema_load
+              create_logstore
+              sync_index
+              self._schema_load = true
+            end
           end
 
           def has_index?
@@ -54,17 +63,21 @@ module Aliyun
             false
           end
 
-          def create(data, opts = {})
+          def create(data, force = false)
             auto_load_schema
             if data.is_a?(Array)
-              logs = data.map do |log_attr|
-                new(log_attr).save_array
+              # TODO batch insert
+              data.each do |log|
+                saved = new(log).save(force)
+                return false unless saved
               end
-              res = Log.record_connection.put_log(project_name, logstore_name, logs, opts)
-              res.code == 200
             else
-              new(data).save
+              new(data).save(force)
             end
+          end
+
+          def create!(data)
+            create(data, true)
           end
 
           private
@@ -80,11 +93,12 @@ module Aliyun
           end
 
           def field_indices
-            if options[:field_index] == false
-              attributes.select { |_, value| value[:index] == true }
-            else
-              attributes.reject { |_, value| value[:index] == false }
-            end
+            indices = if options[:field_index] == false
+                        attributes.select { |_, value| value[:index] == true }
+                      else
+                        attributes.reject { |_, value| value[:index] == false }
+                      end
+            indices.reject { |key, _| RESERVED_FIELDS.include?(key) }
           end
 
           def create_index
@@ -125,38 +139,68 @@ module Aliyun
           end
         end
 
+        def dump_log_tags
+          log_tags = {}
+          self.class.tag_attributes.map do |key, options|
+            log_tags[key] = TypeCasting.dump_field(attributes[key], options)
+          end
+          log_tags.compact
+        end
+
         def dump_attributes
           attributes.dup.tap do |tap|
             tap.each do |k, v|
-              tap[k] = TypeCasting.dump_field(v, self.class.attributes[k])
-            end
-          end
-        end
-
-        def save
-          self.class.auto_load_schema
-          run_callbacks(:create) do
-            run_callbacks(:save) do
-              if valid?
-                res = Log.record_connection.put_log(
-                  self.class.project_name,
-                  self.class.logstore_name,
-                  dump_attributes
-                )
-                res.code == 200
+              if self.class.attributes[k][:log_tag] || RESERVED_FIELDS.include?(k)
+                tap.delete(k)
               else
-                false
+                tap[k] = TypeCasting.dump_field(v, self.class.attributes[k])
               end
             end
           end
         end
 
-        def save_array
+        def save(force = false)
+          self.class.auto_load_schema
           run_callbacks(:create) do
             run_callbacks(:save) do
-              validate! && dump_attributes
+              force && validate!
+              return false unless valid?
+              saved = put_logs
+              @new_record = false if saved
+              saved
             end
           end
+        end
+
+        def save!
+          save(true)
+        end
+
+        private
+
+        def put_logs
+          log_tags = []
+          dump_log_tags.each do |k, v|
+            log_tags << Protobuf::LogTag.new(key: k, value: v)
+          end
+          lg = Protobuf::LogGroup.new(
+            logs: [generate_log],
+            log_tags: log_tags,
+            topic: read_attribute(:__topic__),
+            source: read_attribute(:__source__)
+          )
+          res = Log.record_connection.put_logs(
+            self.class.project_name,
+            self.class.logstore_name,
+            lg
+          )
+          res.code == 200
+        end
+
+        def generate_log
+          time = read_attribute(:__time__) || Time.now.to_i
+          contents = dump_attributes.map { |k, v| { key: k, value: v.to_s } }
+          Protobuf::Log.new(time: time, contents: contents)
         end
       end
     end

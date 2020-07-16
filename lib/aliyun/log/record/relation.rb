@@ -216,7 +216,7 @@ module Aliyun
           sql_query << "ORDER BY #{opts[:order]}" if opts[:order].present?
           if sql_query.present? || opts[:select].present?
             sql_query.insert(0, "SELECT #{opts[:select] || '*'}")
-            sql_query.insert(1, 'FROM log')
+            sql_query.insert(1, 'FROM log') unless opts[:select]&.match?(/from\s+log/i)
             if opts[:line] || opts[:page] || opts[:offset]
               parse_page
               sql_query << "LIMIT #{@opts[:offset]},#{@opts[:line]}"
@@ -250,7 +250,7 @@ module Aliyun
         def sanitize_hash(search_content)
           return search_content unless search_content.is_a?(Hash)
 
-          search_content.select { |_, v| v.present? }.map do |key, value|
+          search_content.reject { |_, v| v.nil? }.map do |key, value|
             options = @klass.attributes[:"#{key}"]
             unless options
               raise UnknownAttributeError, "unknown field '#{key}' for #{@klass.name}."
@@ -259,14 +259,18 @@ module Aliyun
             raise_if_hash_quote(value)
 
             cast_type = options[:cast_type]
+
+            is_tag = @klass.tag_attributes[:"#{key}"]
+            key = :"__tag__:#{key}" if is_tag
             if value.is_a?(Array)
-              values = value.uniq.map { |v| _quote(cast_type, v) }
+              values = value.uniq.map { |v| is_tag ? v : _quote(cast_type, v) }
               str_values = values.map { |v| "#{key}: #{v}" }.join(' OR ')
               values.size > 1 ? "(#{str_values})" : str_values
             elsif value.is_a?(Range)
               "#{key} in [#{value.begin} #{value.end}]"
             else
-              "#{key}: #{_quote(cast_type, value)}"
+              quote_value = is_tag ? value : _quote(cast_type, value)
+              "#{key}: #{quote_value}"
             end
           end.join(' AND ')
         end

@@ -20,6 +20,7 @@ module Aliyun
 
         included do
           class_attribute :attributes, instance_accessor: false, default: {}
+          class_attribute :tag_attributes, instance_accessor: false, default: {}
           extend Common::Logging
         end
 
@@ -31,7 +32,11 @@ module Aliyun
             end
 
             named = name.to_s
-            self.attributes = attributes.merge(name => { type: type }.merge(options))
+            if options[:log_tag]
+              self.tag_attributes = tag_attributes.merge(name => { type: type }.merge(options))
+            else
+              self.attributes = attributes.merge(name => { type: type }.merge(options))
+            end
 
             warn_about_method_overriding(name, name)
             warn_about_method_overriding("#{named}=", name)
